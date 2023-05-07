@@ -4,22 +4,24 @@ import { produce } from 'immer'
 
 const initialState = {  
   users: [],
+  cloneusers: [],
   toggleColor: false,
 }
 
 type State = typeof initialState
 
-type Action = {
-  type: 'SET_USERS'
-  payload: any;
-} | {
-  type: 'SORT_USERS'
-  payload: any;
-
-} | {
-  type: 'TOGGLE_COLOR'
-  payload: any;
+enum ActionTypes {
+  SET_USERS = 'SET_USERS',
+  SORT_USERS = 'SORT_USERS',
+  TOGGLE_COLOR = 'TOGGLE_COLOR',
+  RESTORE_USERS = 'RESTORE_USERS',
+  DELETE_USER = 'DELETE_USER',
 }
+
+type Action = {
+  type: ActionTypes;
+  payload: any;
+} 
 
 
 interface User {
@@ -38,11 +40,12 @@ interface User {
 
 const reducer = (state: State, action: Action) => {
   switch (action.type) {
-    case 'SET_USERS':
+    case ActionTypes.SET_USERS:
      return produce(state, (draftState) => {
         draftState.users = action.payload
+        draftState.cloneusers = action.payload
       })
-    case 'SORT_USERS':
+    case ActionTypes.SORT_USERS:
       return produce(state, (draftState) => {
         draftState.users = draftState.users.sort((a: User, b: User) => {
           if (a.location.country < b.location.country) {
@@ -55,10 +58,23 @@ const reducer = (state: State, action: Action) => {
         }
         )
       })
-    case 'TOGGLE_COLOR':
+    case ActionTypes.TOGGLE_COLOR:
       return produce(state, (draftState) => {
         draftState.toggleColor = !draftState.toggleColor
       })
+
+    case ActionTypes.RESTORE_USERS:
+      return produce(state, (draftState) => {
+        draftState.users = draftState.cloneusers
+      })
+
+    case ActionTypes.DELETE_USER:
+      return produce(state, (draftState) => {
+        draftState.users = draftState.users.filter((user: User) => user.login.uuid !== action.payload)
+      })
+
+
+
     default:
       return state
   }
@@ -67,28 +83,33 @@ const reducer = (state: State, action: Action) => {
 
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState)
-  useEffect(() => {
+
+  const fetchUsers = () => {
     fetch('https://randomuser.me/api/?results=100')
       .then((response) => response.json())
       .then((json) => {
         dispatch({
-          type: 'SET_USERS',
+          type: ActionTypes.SET_USERS,
           payload: json.results,
         })
       }
       )
+    }
+
+  useEffect(() => {
+    fetchUsers()
   }, [])
 
   const handleDelete = (id: string) => {
     dispatch({
-      type: 'SET_USERS',
-      payload: state.users.filter((user: User) => user.login.uuid !== id),
+      type: ActionTypes.DELETE_USER,
+      payload: id,
     })
   }
 
   const handleSort = () => {  
     dispatch({
-      type: 'SORT_USERS',
+      type: ActionTypes.SORT_USERS,
       payload: state.users,
     })
 
@@ -96,19 +117,29 @@ function App() {
 
   const handleColorToggle = () => {
     dispatch({
-      type: 'TOGGLE_COLOR',
+      type: ActionTypes.TOGGLE_COLOR,
       payload: state.toggleColor,
     })
   }
 
+  const handleRefresh = () => {
+    fetchUsers()
+  }
+
+  const handleRestore = () => {
+    dispatch({
+      type: ActionTypes.RESTORE_USERS,
+      payload: state.cloneusers,
+    })
+  }
 
 
   return (
     <>
       <button onClick={handleSort}> Sort by country</button>
       <button onClick={handleColorToggle}> Toggle color</button>
-      <button> Refresh</button>
-      <button> Restore</button>
+      <button onClick={handleRefresh}> Refresh</button>
+      <button onClick={handleRestore}> Restore</button>
       <table>
         <thead>
           <tr>
@@ -120,7 +151,7 @@ function App() {
         </thead>
         <tbody>
          {state.users.map((user: User, index) => (
-            <tr key={user.login.uuid}>
+            <tr key={user.login.uuid} className={state.toggleColor && index % 2 === 0 ? 'even-color' : 'odd-color'}>
               <td>{user.name.first}</td>
               <td>{user.name.last}</td>
               <td>{user.location.country}</td>
