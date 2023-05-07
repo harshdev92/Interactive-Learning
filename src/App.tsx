@@ -16,6 +16,7 @@ enum ActionTypes {
   TOGGLE_COLOR = 'TOGGLE_COLOR',
   RESTORE_USERS = 'RESTORE_USERS',
   DELETE_USER = 'DELETE_USER',
+  SEARCH_USER = 'SEARCH_USER',
 }
 
 type Action = {
@@ -72,6 +73,13 @@ const reducer = (state: State, action: Action) => {
       return produce(state, (draftState) => {
         draftState.users = draftState.users.filter((user: User) => user.login.uuid !== action.payload)
       })
+    
+    case ActionTypes.SEARCH_USER:
+      return produce(state, (draftState) => {
+        draftState.users = action.payload === '' ?  draftState.cloneusers : draftState.cloneusers.filter((user: User) => user.location.country.toLowerCase().includes(action.payload.toLowerCase()))
+      })
+
+    
 
 
 
@@ -140,6 +148,13 @@ function App() {
       <button onClick={handleColorToggle}> Toggle color</button>
       <button onClick={handleRefresh}> Refresh</button>
       <button onClick={handleRestore}> Restore</button>
+      <input type="text" placeholder="Search by country" onChange={(e) => {
+        dispatch({
+          type: ActionTypes.SEARCH_USER,
+          payload: e.target.value,
+        })
+      }} />
+
       <table>
         <thead>
           <tr>
